@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSON Web Tokens</title>
+    <style>
+      html {
+        font-size: 24px;
+        font-weight: 300;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      }
+      header,
+      main {
+        padding: 1rem 2rem;
+      }
+      p,
+      button {
+        font-size: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Using JWT</h1>
+    </header>
+    <main>
+      <p><button id="btnLive">Click to Test Server</button></p>
+      <p><button id="btnToken">Click to Get Token</button></p>
+      <p><button id="btnTest">Click to Check Token</button></p>
+      <pre id="output"></pre>
+    </main>
+    <script>
+      let output;
+      document.addEventListener('DOMContentLoaded', () => {
+        output = document.getElementById('output');
+        document.getElementById('btnLive').addEventListener('click', live);
+        document.getElementById('btnToken').addEventListener('click', gettoken);
+        document.getElementById('btnTest').addEventListener('click', test);
+      });
+      const baseurl = 'http://127.0.0.1:3030/';
+
+      function live(ev) {
+        //check that the server is live
+        fetch(baseurl)
+          .then((res) => res.json())
+          // content will be { code: 0, message: 'ok' } set up in app.js
+          .then((content) => {
+            // '\n' means new line, 2 means with a tab with space of 2
+            output.innerHTML = JSON.stringify(content, '\n', 2);
+            // output.innerHTML = content;
+          })
+          .catch((err) => console.error);
+      }
+
+      function gettoken(ev) {
+        //request a token
+        fetch(baseurl + 'token')
+          .then((res) => res.json())
+          .then((content) => {
+            output.innerHTML = JSON.stringify(content, '\n', 2);
+            // content.data is token, because res.status(201).send({ code: 0, message: 'ok', data: token });
+            let token = content.data;
+            // 'token' here is the localStorage key. token is a string value here.
+            // LocalStorage can only save strings, so storing objects requires to be turned into strings using JSON.stringify
+            localStorage.setItem('token', token);
+          })
+          .catch((err) => console.error);
+      }
+
+      function test(ev) {
+        //send the token and for some secret purpose
+        let token = localStorage.getItem('token');
+        // error handling for user click 'Click to Check Token' first before first two buttons
+        if (!token) {
+          output.innerHTML = 'No available token';
+          return;
+        }
+        let h = new Headers();
+        h.append('Authorization', `Bearer ${token}`);
+        let url = baseurl + 'test';
+        let req = new Request(url, {
+          headers: h,
+          method: 'GET',
+        });
+
+        if (token) {
+          setInterval(() => {
+            fetch(req)
+              .then((res) => res.json())
+              .then((content) => {
+                output.innerHTML = JSON.stringify(content, '\n', 2);
+                // if code > 0, something wrong with the token we retrieved from local storage
+                // then we can delete it, cos we can't use it anymore
+                if (content.code > 0) {
+                  //error happened
+                  localStorage.removeItem('token');
+                }
+              })
+              .catch((err) => console.error);
+          }, 1000);
+        }
+      }
+    </script>
+  </body>
+</html>
